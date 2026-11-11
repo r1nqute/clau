@@ -80,12 +80,25 @@
         // 왼다리가 없다. 마주 보고 오른쪽이 빈 쪽.
         if (e.st === 'down' || fx > e.x + 5) { dmg *= 2; this.puff(e.x, e.y - 14, '#f6f1e3', 5, 70); }
       }
+      if (e.kind === 'boss') e.wasHit = true;
       e.hp -= dmg; e.flash = 0.13;
       const dx = e.x - fx, dy = e.y - fy, l = Math.hypot(dx, dy) || 1;
       if (e.kind !== 'boss') { e.kbx = dx / l * 130; e.kby = dy / l * 130; e.stun = 0.2; if (e.st === 'aim' || e.st === 'lunge') { e.st = 'idle'; e.cd = 0.6; } }
       this.puff(e.x, e.y - e.def.cy, '#f6f1e3', 4, 60);
       G.sfx('hit');
       if (e.hp <= 0) this.kill(e);
+      else if (e.kind !== 'boss' && !e.yielded && e.def.hp >= 2 && e.hp <= Math.ceil(e.def.hp * 0.34)) this.yield(e);
+    },
+
+    // 기가 꺾이면 덤비지 않고 달아난다. 보내 줄지는 치는 쪽이 정한다.
+    yield(e) {
+      e.yielded = true; e.st = 'yield'; e.t = 7; e.z = 0;
+      if (!G.s.flags.sawYield) { G.s.flags.sawYield = 1; G.ui.toast('기가 꺾였다. 보내 줄 수도 있다.'); }
+    },
+    leave(e) {
+      e.dead = true;
+      if (e.sp) { e.sp.deadUntil = G.game.clock() + 700; e.sp.ent = null; }
+      if (!e.counted) { e.counted = true; G.game.onSpare(e); }
     },
 
     kill(e) {
@@ -125,8 +138,8 @@
               if (o.kind === 'boss') {
                 if (o.st !== 'wait' && o.st !== 'friend' && o.beanCd <= 0 && o.z < 6) { o.st = 'down'; o.t = 1.1; o.beanCd = 5; G.sfx('hit'); }
               } else {
-                if (o.kind === 'imp') o.stun = 1.3;
-                this.hurtEnemy(o, o.kind === 'wisp' || o.kind === 'imp' ? 2 : 1, e.x - e.vx, e.y - e.vy);
+                if (o.kind === 'imp') { if (!o.yielded) { this.yield(o); G.sfx('hit'); o.flash = 0.13; } }
+                else this.hurtEnemy(o, o.kind === 'wisp' ? 2 : 1, e.x - e.vx, e.y - e.vy);
               }
               break;
             }
@@ -157,6 +170,7 @@
       if (e.stun > 0) { e.stun -= dt; return; }
       const dx = p.x - e.x, dy = p.y - e.y;
       let dist = Math.hypot(dx, dy) || 1;
+      const real = dist, rx = dx / real, ry = dy / real;
       if (safe && e.kind !== 'boss') dist = 9999;
       const ux = dx / dist, uy = dy / dist;
       const go = (vx, vy) => {
@@ -175,6 +189,12 @@
         if (e.vx || e.vy) { if (go(e.vx, e.vy)) e.vx = e.vy = 0; }
       };
 
+      if (e.st === 'yield' || e.st === 'fed') {
+        const v = e.st === 'fed' ? 22 : Math.max(d.spd, 44) * 1.15;
+        if (e.st === 'yield' || e.t < 5.2) go(-rx * v, -ry * v);
+        if (real > 170 || e.t <= 0) { this.puff(e.x, e.y - d.cy, '#c4a676', 4, 30); this.leave(e); }
+        return;
+      }
       switch (e.kind) {
         case 'crab':
           if (dist < 60) go(Math.sign(dx) * d.spd * 1.3, Math.sign(dy) * d.spd * (Math.abs(dy) > 6 ? 0.5 : 0));
@@ -268,7 +288,7 @@
           if (G.dist(p.x, p.y - 6, e.x, e.y - 10) < 36) G.game.hurt(1, e.x, e.y, 260);
         }
       } else if (e.st === 'shove') {
-        if (e.t <= 0) { e.st = 'hop'; e.n = 0; e.ph = 0.3; }
+        if (e.t <= 0) { e.st = 'hop'; e.n = 0; e.ph = 0.3; e.done = (e.done || 0) + 1; }
       } else if (e.st === 'jumpAim') {
         if (e.t <= 0) { e.st = 'jump'; e.t = 0.75; e.tx = p.x; e.ty = p.y; e.sx = e.x; e.sy = e.y; G.sfx('roll'); }
       } else if (e.st === 'jump') {
@@ -283,8 +303,10 @@
           if (G.dist(p.x, p.y, e.x, e.y) < 27) G.game.hurt(2, e.x, e.y, 240);
         }
       } else if (e.st === 'down') {
-        if (e.t <= 0) { e.st = 'hop'; e.n = 0; e.ph = 0.3; }
+        if (e.t <= 0) { e.st = 'hop'; e.n = 0; e.ph = 0.3; e.done = (e.done || 0) + 1; }
       }
+      // 한 대도 안 맞고 열두 번을 헛심 쓰면 제풀에 지친다
+      if (e.st === 'hop' && !e.wasHit && e.done >= 12) G.game.bossYield(e);
     }
   };
 
@@ -466,6 +488,10 @@
     }
     if (e.flash > 0 || ((e.st === 'aim' || e.st === 'shoveAim') && Math.floor(e.anim * 16) % 2)) img = G.art.white(img);
     const dx = x - (img.width >> 1) + ox, dy = y - img.height + 1 + oy - Math.round(e.z || 0);
+    if (e.st === 'yield' && Math.floor(e.anim * 6) % 2) {
+      // 진땀
+      ctx.fillStyle = '#b9d2cc'; ctx.fillRect(dx + img.width - 2, dy - 2, 1, 2); ctx.fillRect(dx + img.width + 1, dy + 1, 1, 2);
+    }
     if (e.kind === 'boss' && e.st === 'down') {
       // 나자빠진 꼴
       ctx.save(); ctx.translate(x, y - 8); ctx.rotate(1.5708); ctx.drawImage(img, -img.width / 2, -img.height / 2); ctx.restore();

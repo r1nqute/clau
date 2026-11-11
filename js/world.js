@@ -7,11 +7,13 @@
   const SOLID_T = []; SOLID_T[T.WATER] = SOLID_T[T.ROCK] = SOLID_T[T.CAVEW] = SOLID_T[T.VOID] = 1;
   const HARD = []; HARD[T.SALT] = HARD[T.PADDY] = HARD[T.BRIDGE] = HARD[T.FLOOR] = HARD[T.VOID] = 1;
 
+  const LOOKABLE = { jar: 1, well: 1, hay: 1, scarecrow: 1, boat: 1, wreck: 1, pagoda: 1, stall: 1, fire: 1, dangsan: 1, kiln: 1, sotdae: 1, stump: 1 };
   function makeMap(id, w, h) {
     return { id, w, h, t: new Uint8Array(w * h), solid: new Uint8Array(w * h), props: [], buckets: new Map(), chunks: new Map(), npcs: [], spawns: [], warps: [], dark: false };
   }
   function addProp(m, s, tx, ty, o) {
     const p = Object.assign({ s, x: tx * 16 + 8, y: ty * 16 + 15, v: 0 }, o || {});
+    if (!p.use && LOOKABLE[s]) p.use = 'look';
     if (p.soft) { p.x += Math.floor(G.hash2(tx, ty, 91) * 11) - 5; p.y -= Math.floor(G.hash2(tx, ty, 92) * 9); p.v = G.hash2(tx, ty, 93) < 0.5 ? 0 : 1; }
     m.props.push(p);
     const k = (Math.floor(p.y / 128) << 8) | Math.floor(p.x / 128);

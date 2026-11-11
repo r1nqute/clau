@@ -88,8 +88,22 @@
       const s = G.s, id = s.quick;
       if (!id || !(s.inv[id] > 0)) { this.cycleQuick(); return; }
       const d = G.ITEMS[id];
-      if (d.heal) this.eat(id);
-      else if (d.thrown) {
+      if (d.heal) {
+        // 배고픈 짐승이 코앞이면 내가 먹는 대신 던져 준다
+        let near = null, nd = 48;
+        for (const e of G.E.list) {
+          if (e.type !== 'enemy' || e.dead || e.yielded || e.st === 'fed') continue;
+          if (e.kind !== 'dog' && e.kind !== 'wolf' && e.kind !== 'boar') continue;
+          const dd = G.dist(e.x, e.y, G.p.x, G.p.y);
+          if (dd < nd) { nd = dd; near = e; }
+        }
+        if (near) {
+          s.inv[id]--; near.st = 'fed'; near.t = 6; near.yielded = true; near.kbx = near.kby = 0;
+          near.counted = true; G.sfx('eat'); G.E.puff(near.x, near.y - 8, '#e6cc78', 6, 30);
+          G.ui.toast({ dog: '들개', wolf: '늑대', boar: '멧돼지' }[near.kind] + '가 ' + d.name + '을 물고 물러난다.');
+          this.onSpare(near);
+        } else this.eat(id);
+      } else if (d.thrown) {
         const p = G.p, v = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.dir];
         s.inv[id]--;
         G.E.list.push({ type: 'bean', x: p.x + v[0] * 8, y: p.y + v[1] * 6, vx: v[0] * 190, vy: v[1] * 190, t: 0.55 });
@@ -119,6 +133,7 @@
         if (pr.use === 'chest' && G.s.flags[pr.id]) return null;
         if (pr.use === 'doltap' && G.s.flags[pr.id]) return null;
         if (pr.use === 'kite' && G.s.flags.kiteTaken) return null;
+        if (pr.use === 'look') return { prop: pr, x: pr.x, y: pr.y, quiet: true };
         const sp = G.spr[pr.s], h = (Array.isArray(sp) ? sp[0] : sp).height;
         return { prop: pr, x: pr.x, y: pr.y - h - 3 };
       }
@@ -133,7 +148,11 @@
         return;
       }
       const pr = t.prop;
-      if (pr.use === 'sign') G.ui.say('', G.SIGNS[pr.id]);
+      if (pr.use === 'look') {
+        const lines = G.LOOKS[pr.s], k = 'look_' + pr.s;
+        G.ui.say('', lines[Math.min(f[k] || 0, lines.length - 1)]);
+        f[k] = (f[k] || 0) + 1;
+      } else if (pr.use === 'sign') G.ui.say('', G.SIGNS[pr.id]);
       else if (pr.use === 'save') {
         const night = this.isNight();
         G.ui.say('', '장승이 서 있다. 눈을 부라리고 있는데 어쩐지 마음이 놓인다.');
@@ -178,12 +197,26 @@
       s.x = G.p.x; s.y = G.p.y;
       if (!G.store.write(s)) G.ui.toast('이 브라우저에서는 기록이 남지 않는다.');
     },
+    boarGone() {
+      const f = G.s.flags;
+      if (f.boar !== 1) return;
+      f.boarKills = (f.boarKills || 0) + 1;
+      if (f.boarKills === 3) G.ui.toast('멧돼지 세 마리. 숯쟁이에게 가자.');
+    },
+    onSpare(e) {
+      G.s.spared = (G.s.spared || 0) + 1;
+      if (e.kind === 'boar') this.boarGone();
+    },
+    bossYield(b) {
+      const s = G.s;
+      pass.fight = false; b.st = 'friend';
+      G.ui.say('외다리', ['……안 덤벼?', '한 대도 안 치고 여태 버텼네. 김 서방, 너 이상한 놈이다.', '내가 졌다. 숨차서 졌어. 가라.', '다음엔 묵이나 한 모 들고 와. 씨름 말고 얘기나 하게.']);
+      G.ui.run(() => { s.flags.pass = 3; G.ui.toast('고개가 열렸다'); this.save(); });
+    },
     onKill(e) {
       const f = G.s.flags;
-      if (e.kind === 'boar' && f.boar === 1) {
-        f.boarKills = (f.boarKills || 0) + 1;
-        if (f.boarKills === 3) G.ui.toast('멧돼지 세 마리. 숯쟁이에게 가자.');
-      }
+      if (e.kind !== 'boss') G.s.kills = (G.s.kills || 0) + 1;
+      if (e.kind === 'boar') this.boarGone();
       if (e.kind === 'boss') {
         f.pass = 1; pass.fight = false; pass.boss = null;
         G.s.gear.weapon = 2;
@@ -229,7 +262,7 @@
     const near = G.dist(p.x, p.y, ARENA.x, ARENA.y) < 340;
     const inPass = p.x > 62 * 16 && p.x < 83 * 16 && p.y < 36 * 16 && p.y > 17 * 16;
     if (f.pass) {
-      if (f.pass === 2 && night && near && !pass.boss) {
+      if (f.pass >= 2 && night && near && !pass.boss) {
         pass.boss = E.spawn('boss', 76 * 16, 27 * 16); pass.boss.st = 'friend'; pass.boss.beanCd = 0;
       } else if (pass.boss && !night) { E.puff(pass.boss.x, pass.boss.y - 14, '#8a5a7a', 14); pass.boss.dead = true; pass.boss = null; }
       return;
@@ -336,6 +369,7 @@
     G.s = saved || fresh();
     const s = G.s;
     if (!s.explored || s.explored.length !== 300) s.explored = new Array(300).fill(0);
+    s.kills = s.kills || 0; s.spared = s.spared || 0;
     G.ui.reset();
     enter(s.map, s.x, s.y, 'down');
     state = 'play';
@@ -399,7 +433,7 @@
     G.E.drawParts(ctx, cx, cy);
 
     // 살필 수 있는 것 위에 작은 표시
-    if (target) {
+    if (target && !target.quiet) {
       const bx = Math.round(target.x - cx), by = Math.round(target.y - cy) + (Math.floor(time * 3) % 2);
       ctx.fillStyle = '#1b1a1f'; ctx.fillRect(bx - 4, by - 1, 9, 3); ctx.fillRect(bx - 3, by + 2, 7, 1); ctx.fillRect(bx - 2, by + 3, 5, 1); ctx.fillRect(bx - 1, by + 4, 3, 1);
       ctx.fillStyle = '#e6cc78'; ctx.fillRect(bx - 3, by, 7, 1); ctx.fillRect(bx - 2, by + 1, 5, 1); ctx.fillRect(bx - 1, by + 2, 3, 1); ctx.fillRect(bx, by + 3, 1, 1);

@@ -178,6 +178,7 @@
       if (s.gear.lantern) { TX.draw(ctx, '초롱', 182, y, PAPER); y += 14; }
       if (s.maxhp > 5) { TX.draw(ctx, '감 ' + s.maxhp + '개', 182, y, PAPER); y += 14; }
       TX.draw(ctx, G.game.dayText(), 182, 150, DIM, 'small');
+      if (s.kills || s.spared) TX.draw(ctx, '잡은 것 ' + (s.kills || 0) + '   보낸 것 ' + (s.spared || 0), 182, 138, DIM, 'small');
       ctx.fillStyle = '#33303a'; ctx.fillRect(28, 168, 328, 1);
       if (list.length) {
         const d = G.ITEMS[list[menu.sel]];
@@ -217,7 +218,7 @@
       let y = 42;
       for (const [a, b] of rows) { TX.draw(ctx, a, 40, y, PAPER); TX.draw(ctx, b, 180, y, GOLD); y += 14; }
       TX.draw(ctx, '장승 앞에서 살피면 기록된다. 쓰러지면 마지막 장승에서 깬다.', 40, 176, DIM, 'small');
-      TX.draw(ctx, '구르는 동안은 맞지 않는다.', 40, 188, DIM, 'small');
+      TX.draw(ctx, '구르는 동안은 맞지 않는다. 기가 꺾인 것은 안 쳐도 된다.', 40, 188, DIM, 'small');
     }
   }
 
