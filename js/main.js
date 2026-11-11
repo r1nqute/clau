@@ -450,9 +450,12 @@
 
   // ---------- 시작 ----------
   function resize() {
-    const ww = window.innerWidth, wh = window.innerHeight;
+    const host = canvas.parentElement;
+    const ww = host.clientWidth || window.innerWidth, wh = host.clientHeight || window.innerHeight;
     let sc = Math.min(ww / G.W, wh / G.H);
-    if (sc >= 2) sc = Math.floor(sc);
+    // 딱 떨어지는 배율이 화면을 거의 채울 때만 정수 배율로
+    const fl = Math.floor(sc);
+    if (fl >= 2 && fl / sc > 0.86) sc = fl;
     canvas.style.width = Math.floor(G.W * sc) + 'px';
     canvas.style.height = Math.floor(G.H * sc) + 'px';
   }

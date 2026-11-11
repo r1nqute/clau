@@ -4,35 +4,40 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>재 너머</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
   @font-face { font-family: 'Galmuri11'; src: url('assets/fonts/Galmuri11.woff2') format('woff2'); font-display: block; }
   @font-face { font-family: 'Galmuri9'; src: url('assets/fonts/Galmuri9.woff2') format('woff2'); font-display: block; }
-  html, body { margin: 0; height: 100%; background: #0c0b0f; overflow: hidden; overscroll-behavior: none; }
-  body { display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #0c0b0f; }
-  #wait { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #8e8f8c; font: 14px sans-serif; }
+  /* 한 화면짜리 게임. 밤 한 가지 빛깔로만 간다. */
+  :root { --ink: #0c0b0f; --paper: #e8e2d0; --dim: #8e8f8c; --straw: #e6cc78; color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper); overflow: hidden; overscroll-behavior: none; }
+  body { box-sizing: border-box; display: flex; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #stage { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; max-width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; background: var(--ink); }
+  #wait { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font: 14px system-ui, sans-serif; }
   #touch { display: none; }
   .tb { position: fixed; box-sizing: border-box; border: 2px solid rgba(232,226,208,.5); background: rgba(27,26,31,.45); color: rgba(246,241,227,.85);
-        font: 12px 'Galmuri11', sans-serif; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        font: 12px 'Galmuri11', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
   .tb.on { background: rgba(230,204,120,.45); }
-  #pad { left: 14px; bottom: 18px; width: 132px; height: 132px; }
+  #pad { left: calc(14px + env(safe-area-inset-left, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 132px; height: 132px; }
   #pad i { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; background: rgba(232,226,208,.4); }
-  #bA { right: 16px; bottom: 62px; width: 66px; height: 66px; }
-  #bB { right: 90px; bottom: 22px; width: 58px; height: 58px; }
-  #bD { right: 92px; bottom: 96px; width: 50px; height: 50px; }
-  #bC { right: 22px; bottom: 138px; width: 50px; height: 50px; }
-  #bM { right: 14px; top: 10px; width: 52px; height: 30px; border-radius: 6px; }
+  #bA { right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); width: 66px; height: 66px; }
+  #bB { right: calc(90px + env(safe-area-inset-right, 0px)); bottom: calc(22px + env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; }
+  #bD { right: calc(92px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 50px; height: 50px; }
+  #bC { right: calc(22px + env(safe-area-inset-right, 0px)); bottom: calc(138px + env(safe-area-inset-bottom, 0px)); width: 50px; height: 50px; }
+  #bM { right: calc(14px + env(safe-area-inset-right, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); width: 52px; height: 30px; border-radius: 6px; }
   @media (pointer: coarse) {
     #touch { display: block; }
   }
   @media (pointer: coarse) and (orientation: portrait) {
-    body { align-items: flex-start; }
-    #bM { top: auto; bottom: 200px; }
+    #stage { align-items: flex-start; }
+    #bM { top: auto; bottom: calc(200px + env(safe-area-inset-bottom, 0px)); }
   }
 </style>
 </head>
 <body>
-<canvas id="game" width="384" height="216"></canvas>
+<div id="stage"><canvas id="game" width="384" height="216"></canvas></div>
 <div id="wait">…</div>
 <div id="touch">
   <div class="tb" id="pad"><i></i></div>
