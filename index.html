@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>재 너머</title>
+<style>
+  @font-face { font-family: 'Galmuri11'; src: url('assets/fonts/Galmuri11.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Galmuri9'; src: url('assets/fonts/Galmuri9.woff2') format('woff2'); font-display: block; }
+  html, body { margin: 0; height: 100%; background: #0c0b0f; overflow: hidden; overscroll-behavior: none; }
+  body { display: flex; align-items: center; justify-content: center; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #0c0b0f; }
+  #wait { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #8e8f8c; font: 14px sans-serif; }
+  #touch { display: none; }
+  .tb { position: fixed; box-sizing: border-box; border: 2px solid rgba(232,226,208,.5); background: rgba(27,26,31,.45); color: rgba(246,241,227,.85);
+        font: 12px 'Galmuri11', sans-serif; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .tb.on { background: rgba(230,204,120,.45); }
+  #pad { left: 14px; bottom: 18px; width: 132px; height: 132px; }
+  #pad i { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; background: rgba(232,226,208,.4); }
+  #bA { right: 16px; bottom: 62px; width: 66px; height: 66px; }
+  #bB { right: 90px; bottom: 22px; width: 58px; height: 58px; }
+  #bD { right: 92px; bottom: 96px; width: 50px; height: 50px; }
+  #bC { right: 22px; bottom: 138px; width: 50px; height: 50px; }
+  #bM { right: 14px; top: 10px; width: 52px; height: 30px; border-radius: 6px; }
+  @media (pointer: coarse) {
+    #touch { display: block; }
+  }
+  @media (pointer: coarse) and (orientation: portrait) {
+    body { align-items: flex-start; }
+    #bM { top: auto; bottom: 200px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="384" height="216"></canvas>
+<div id="wait">…</div>
+<div id="touch">
+  <div class="tb" id="pad"><i></i></div>
+  <div class="tb" id="bA" data-a="a">치기</div>
+  <div class="tb" id="bB" data-a="b">살피기</div>
+  <div class="tb" id="bC" data-a="c">쓰기</div>
+  <div class="tb" id="bD" data-a="d">구르기</div>
+  <div class="tb" id="bM" data-a="menu">봇짐</div>
+</div>
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script src="js/world.js"></script>
+<script src="js/data.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+<script>
+(function () {
+  // 손가락 조작
+  var pad = document.getElementById('pad'), knob = pad.firstElementChild;
+  function padSet(e) {
+    var r = pad.getBoundingClientRect();
+    var dx = (e.clientX - r.left) / r.width - 0.5, dy = (e.clientY - r.top) / r.height - 0.5;
+    var dead = 0.12;
+    G.input.set('left', dx < -dead && Math.abs(dx) > Math.abs(dy) * 0.45);
+    G.input.set('right', dx > dead && Math.abs(dx) > Math.abs(dy) * 0.45);
+    G.input.set('up', dy < -dead && Math.abs(dy) > Math.abs(dx) * 0.45);
+    G.input.set('down', dy > dead && Math.abs(dy) > Math.abs(dx) * 0.45);
+    var l = Math.hypot(dx, dy) || 1, k = Math.min(1, 0.36 / l);
+    knob.style.transform = 'translate(' + dx * k * r.width + 'px,' + dy * k * r.height + 'px)';
+  }
+  function padOff() {
+    ['left', 'right', 'up', 'down'].forEach(function (a) { G.input.set(a, false); });
+    knob.style.transform = '';
+  }
+  pad.addEventListener('pointerdown', function (e) { e.preventDefault(); pad.setPointerCapture(e.pointerId); G.audio.wake(); padSet(e); });
+  pad.addEventListener('pointermove', function (e) { if (pad.hasPointerCapture(e.pointerId)) padSet(e); });
+  pad.addEventListener('pointerup', padOff);
+  pad.addEventListener('pointercancel', padOff);
+  Array.prototype.forEach.call(document.querySelectorAll('.tb[data-a]'), function (b) {
+    var a = b.getAttribute('data-a');
+    b.addEventListener('pointerdown', function (e) { e.preventDefault(); G.audio.wake(); G.input.set(a, true); b.classList.add('on'); });
+    var up = function () { G.input.set(a, false); b.classList.remove('on'); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  });
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  document.getElementById('game').addEventListener('pointerdown', function () { G.audio.wake(); });
+
+  function go() { var w = document.getElementById('wait'); if (w) w.remove(); G.main.start(); }
+  var done = false, once = function () { if (!done) { done = true; go(); } };
+  if (document.fonts && document.fonts.load) {
+    Promise.all([document.fonts.load('12px Galmuri11', '재 너머'), document.fonts.load('10px Galmuri9', '재 너머')]).then(once, once);
+    setTimeout(once, 4000);
+  } else once();
+})();
+</script>
+</body>
+</html>
